@@ -58,6 +58,13 @@ function Scene() {
         size={particleControls.size}
         opacity={particleControls.opacity}
         color={particleControls.color}
+        bottomDensity={particleControls.bottomDensity}
+        velocityGradient={particleControls.velocityGradient}
+        sizeGradient={particleControls.sizeGradient}
+        opacityGradient={particleControls.opacityGradient}
+        pulseSpeed={particleControls.pulseSpeed}
+        pulseIntensity={particleControls.pulseIntensity}
+        driftIntensity={particleControls.driftIntensity}
       />
 
       {/* <AsphaltPlane scale={10} position={[0, 0, -5]} rotation={[0, 0, 0]} />

@@ -5,8 +5,10 @@ Command: npx gltfjsx@6.5.3 ./public/Models/TraidarLogo/TraidarLogo.glb --typescr
 
 import { useGLTF } from "@react-three/drei";
 import type { ThreeElements } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { useGlassControls } from "../hooks/useSceneControls";
+import { useGlassControls, useMouseControls } from "../hooks/useSceneControls";
+import { useRef, useState } from "react";
 
 type GLTFResult = {
   nodes: {
@@ -23,8 +25,89 @@ export function TraidarLogo(props: ThreeElements["group"]) {
   ) as unknown as GLTFResult;
 
   const glassControls = useGlassControls();
+  const mouseControls = useMouseControls();
+  const { mouse } = useThree();
+
+  // Store the default position and rotation
+  const defaultPosition = { x: 0, y: 0, z: 0 };
+  const defaultRotation = { x: 0, y: 0, z: 0 };
+
+  // Refs for smooth interpolation
+  const groupRef = useRef<THREE.Group>(null);
+  const [targetPosition, setTargetPosition] = useState(defaultPosition);
+  const [targetRotation, setTargetRotation] = useState(defaultRotation);
+
+  useFrame((state, delta) => {
+    if (!groupRef.current || !mouseControls.enabled) return;
+
+    // Get viewport dimensions for proper mouse coordinates
+    const { viewport } = state;
+
+    // Calculate target position based on mouse movement
+    const mouseInfluence = {
+      x: mouse.x * mouseControls.sensitivity * mouseControls.maxPosition,
+      y: mouse.y * mouseControls.sensitivity * mouseControls.maxPosition,
+      z: 0,
+    };
+
+    // Calculate world mouse position
+    const mouseWorldPos = new THREE.Vector3(
+      (mouse.x * viewport.width) / 2,
+      (mouse.y * viewport.height) / 2,
+      0
+    );
+
+    // Current logo position (including any position offset)
+    const currentPosition = new THREE.Vector3(
+      defaultPosition.x + mouseInfluence.x,
+      defaultPosition.y + mouseInfluence.y,
+      defaultPosition.z + mouseInfluence.z
+    );
+
+    // Calculate direction from logo to mouse
+    const direction = mouseWorldPos.clone().sub(currentPosition).normalize();
+
+    // Calculate rotation to face the mouse
+    const targetRotation = {
+      x:
+        Math.atan2(
+          -direction.y,
+          Math.sqrt(direction.x * direction.x + direction.z * direction.z)
+        ) * mouseControls.maxRotation,
+      y: Math.atan2(direction.x, direction.z) * mouseControls.maxRotation,
+      z: 0,
+    };
+
+    // Set new targets
+    setTargetPosition({
+      x: currentPosition.x,
+      y: currentPosition.y,
+      z: currentPosition.z,
+    });
+
+    setTargetRotation(targetRotation);
+
+    // Smooth interpolation
+    const lerpFactor = mouseControls.smoothing;
+
+    // Interpolate position
+    groupRef.current.position.lerp(
+      new THREE.Vector3(targetPosition.x, targetPosition.y, targetPosition.z),
+      lerpFactor
+    );
+
+    // Interpolate rotation
+    const targetQuaternion = new THREE.Euler(
+      targetRotation.x,
+      targetRotation.y,
+      targetRotation.z
+    );
+    const targetQuat = new THREE.Quaternion().setFromEuler(targetQuaternion);
+    groupRef.current.quaternion.slerp(targetQuat, lerpFactor);
+  });
+
   return (
-    <group {...props} dispose={null}>
+    <group {...props} ref={groupRef} dispose={null}>
       <mesh
         geometry={nodes.Mesh_0.geometry}
         material={
