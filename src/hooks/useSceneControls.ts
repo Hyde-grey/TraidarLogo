@@ -38,6 +38,24 @@ export function useGlassControls() {
 }
 
 /**
+ * Custom hook for rising particles controls
+ * Provides controls for the atmospheric rising particles
+ */
+export function useParticleControls() {
+  const particleControls = useControls("Rising Particles", {
+    count: { value: 200, min: 50, max: 500, step: 10 },
+    area: { value: 20, min: 10, max: 40, step: 1 },
+    height: { value: 15, min: 5, max: 25, step: 1 },
+    speed: { value: 0.5, min: 0.1, max: 2.0, step: 0.1 },
+    size: { value: 0.02, min: 0.005, max: 0.1, step: 0.005 },
+    opacity: { value: 0.6, min: 0.1, max: 1.0, step: 0.05 },
+    color: { value: "#ff6b35" },
+  });
+
+  return particleControls;
+}
+
+/**
  * Custom hook for global rendering controls
  * Provides controls for tone mapping and other global canvas settings
  */

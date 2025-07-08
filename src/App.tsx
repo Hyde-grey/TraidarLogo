@@ -1,11 +1,16 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment } from "@react-three/drei";
-import { useSceneControls, useRenderControls } from "./hooks/useSceneControls";
+import {
+  useSceneControls,
+  useRenderControls,
+  useParticleControls,
+} from "./hooks/useSceneControls";
 import { DebugTools } from "./components/DebugTools";
 
 import "./App.css";
 import * as THREE from "three";
 import { TraidarLogo } from "./Models/TraidarLogo";
+import { RisingParticles } from "./Models/RisingParticles";
 // import AsphaltPlane from "./Models/AsphaltPlane";
 
 function Scene() {
@@ -18,6 +23,8 @@ function Scene() {
     logoScale,
     backgroundColor,
   } = useSceneControls();
+
+  const particleControls = useParticleControls();
 
   return (
     <>
@@ -41,6 +48,17 @@ function Scene() {
 
       {/* 3D Objects */}
       <TraidarLogo position={logoPosition} scale={logoScale} />
+
+      {/* Atmospheric Effects */}
+      <RisingParticles
+        count={particleControls.count}
+        area={particleControls.area}
+        height={particleControls.height}
+        speed={particleControls.speed}
+        size={particleControls.size}
+        opacity={particleControls.opacity}
+        color={particleControls.color}
+      />
 
       {/* <AsphaltPlane scale={10} position={[0, 0, -5]} rotation={[0, 0, 0]} />
       <AsphaltPlane
