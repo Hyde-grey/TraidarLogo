@@ -8,7 +8,7 @@ import type { ThreeElements } from "@react-three/fiber";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGlassControls, useMouseControls } from "../hooks/useSceneControls";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 type GLTFResult = {
   nodes: {
@@ -20,7 +20,7 @@ type GLTFResult = {
 };
 
 export function TraidarLogo(props: ThreeElements["group"]) {
-  const { nodes, materials } = useGLTF(
+  const { nodes } = useGLTF(
     "/Models/TraidarLogo/TraidarLogo.glb"
   ) as unknown as GLTFResult;
 
@@ -28,16 +28,13 @@ export function TraidarLogo(props: ThreeElements["group"]) {
   const mouseControls = useMouseControls();
   const { mouse } = useThree();
 
-  // Store the default position and rotation
+  // Store the default position
   const defaultPosition = { x: 0, y: 0, z: 0 };
-  const defaultRotation = { x: 0, y: 0, z: 0 };
 
-  // Refs for smooth interpolation
+  // Ref for smooth interpolation
   const groupRef = useRef<THREE.Group>(null);
-  const [targetPosition, setTargetPosition] = useState(defaultPosition);
-  const [targetRotation, setTargetRotation] = useState(defaultRotation);
 
-  useFrame((state, delta) => {
+  useFrame((state) => {
     if (!groupRef.current || !mouseControls.enabled) return;
 
     // Get viewport dimensions for proper mouse coordinates
@@ -78,23 +75,11 @@ export function TraidarLogo(props: ThreeElements["group"]) {
       z: 0,
     };
 
-    // Set new targets
-    setTargetPosition({
-      x: currentPosition.x,
-      y: currentPosition.y,
-      z: currentPosition.z,
-    });
-
-    setTargetRotation(targetRotation);
-
     // Smooth interpolation
     const lerpFactor = mouseControls.smoothing;
 
     // Interpolate position
-    groupRef.current.position.lerp(
-      new THREE.Vector3(targetPosition.x, targetPosition.y, targetPosition.z),
-      lerpFactor
-    );
+    groupRef.current.position.lerp(currentPosition, lerpFactor);
 
     // Interpolate rotation
     const targetQuaternion = new THREE.Euler(
