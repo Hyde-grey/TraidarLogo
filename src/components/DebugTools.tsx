@@ -1,4 +1,3 @@
-import React from "react";
 import { Stats, Grid, GizmoHelper, GizmoViewport } from "@react-three/drei";
 
 /**
