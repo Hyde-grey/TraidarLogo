@@ -12,6 +12,7 @@ import {
 } from "./hooks/useSceneControls";
 import { DebugTools } from "./components/DebugTools";
 import { AdvancedLogoParticles } from "./components/AdvancedLogoParticles";
+import { useLoadingScreen } from "./hooks/useLoadingScreen";
 
 import "./App.css";
 import * as THREE from "three";
@@ -33,6 +34,7 @@ function Scene() {
   } = useSceneControls();
 
   const particleControls = useParticleControls();
+  const { signalExperienceReady } = useLoadingScreen();
 
   // Camera controls
   const cameraControls = useCameraControls();
@@ -194,6 +196,15 @@ function Scene() {
     },
     { collapsed: true }
   );
+
+  // Signal that the experience is ready after initial setup
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      signalExperienceReady();
+    }, 800); // Short delay to ensure 3D content is rendered
+
+    return () => clearTimeout(timer);
+  }, [signalExperienceReady]);
 
   return (
     <>
