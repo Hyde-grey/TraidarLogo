@@ -147,7 +147,7 @@ function Scene() {
         value: "/TraidarLogo.PNG",
         options: {
           TraidarLogo: "/TraidarLogo.PNG",
-          TraidarBull: "/TraidarBull.PNG",
+          // TraidarBull: "/TraidarBull.PNG",
           "Vite Logo": "/vite.svg",
           "React Logo (from assets)": "/src/assets/react.svg",
         },

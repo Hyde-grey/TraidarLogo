@@ -70,7 +70,7 @@ type AdvancedLogoParticlesProps = {
   particleCount?: number;
   /** Enable morphing controls and functionality (default: true) */
   enableMorphing?: boolean;
-  /** Morphing sequence progress (0-1, for external animation control) - 0: sphere, 0.4-0.6: bull (buffer), 1: logo */
+  /** Morphing sequence progress (0-1, for external animation control) - 0: sphere, 1: logo */
   morphSequenceProgress?: number;
   /** Speed of morphing animations when using internal controls (default: 0.3) */
   morphSpeed?: number;
@@ -199,88 +199,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
   // Internal state for sequence progress (when no external progress provided)
   const [internalSphereProgress, setInternalSphereProgress] = useState(0);
 
-  // State for tracking bull image loading
-  const [bullImageData, setBullImageData] = useState<{
-    image: HTMLImageElement;
-    pixels: Array<{ x: number; y: number }>;
-    canvasWidth: number;
-    canvasHeight: number;
-  } | null>(null);
-
-  // Preload and process bull image
-  useEffect(() => {
-    const loadAndProcessBullImage = async () => {
-      try {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-
-        // Create promise for image loading
-        const imageLoadPromise = new Promise<HTMLImageElement>(
-          (resolve, reject) => {
-            img.onload = () => resolve(img);
-            img.onerror = () =>
-              reject(new Error("Failed to load TraidarBull.PNG"));
-          }
-        );
-
-        img.src = "/TraidarBull.PNG";
-        const loadedImage = await imageLoadPromise;
-
-        // Process the image to extract pixels
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        if (!ctx) {
-          throw new Error("Failed to get canvas context for bull image");
-        }
-
-        canvas.width = loadedImage.width;
-        canvas.height = loadedImage.height;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(loadedImage, 0, 0);
-
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-
-        // Extract visible pixels
-        const pixels: Array<{ x: number; y: number }> = [];
-        for (let i = 0; i < data.length; i += 4) {
-          const a = data[i + 3];
-          if (a > alphaThreshold) {
-            const pixelIndex = i / 4;
-            const x = pixelIndex % canvas.width;
-            const y = Math.floor(pixelIndex / canvas.width);
-            pixels.push({ x, y });
-          }
-        }
-
-        // Shuffle for better distribution
-        for (let i = pixels.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [pixels[i], pixels[j]] = [pixels[j], pixels[i]];
-        }
-
-        setBullImageData({
-          image: loadedImage,
-          pixels,
-          canvasWidth: canvas.width,
-          canvasHeight: canvas.height,
-        });
-
-        if (debug) {
-          console.log(
-            `✅ Loaded bull image: ${loadedImage.width}x${loadedImage.height}, ${pixels.length} pixels`
-          );
-        }
-      } catch (error) {
-        console.error("❌ Failed to load bull image:", error);
-        setBullImageData(null);
-      }
-    };
-
-    loadAndProcessBullImage();
-  }, [debug, alphaThreshold]);
-
   // Configure texture for better color handling
   useMemo(() => {
     if (texture) {
@@ -322,14 +240,13 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
         max: 1,
         step: 0.01,
         onChange: setInternalSphereProgress,
-        label: "Sequence Progress (0=Sphere, 0.4-0.6=Bull, 1=Logo)",
+        label: "Sequence Progress (0=Sphere, 1=Logo)",
       },
       // Preset buttons for quick testing
       morphPresets: {
         value: "Logo",
         options: {
           Sphere: "sphere",
-          Bull: "bull",
           Logo: "logo",
           Reset: "reset",
         },
@@ -337,9 +254,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
           switch (preset) {
             case "sphere":
               setInternalSphereProgress(0.0); // Start of sequence
-              break;
-            case "bull":
-              setInternalSphereProgress(0.5); // Middle of buffer range
               break;
             case "logo":
               setInternalSphereProgress(1.0); // End of sequence
@@ -385,37 +299,14 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
 
   // Convert sequence progress to individual morph amounts
   // 0.0: 100% sphere
-  // 0.4-0.6: 100% bull (buffer range)
   // 1.0: 100% logo
-  let sphereAmount, bullAmount, logoAmount;
+  let sphereAmount, logoAmount;
 
-  if (sequenceProgress < 0.4) {
-    // First phase (0.0 to 0.4): sphere to bull transition
-    sphereAmount = 1.0 - sequenceProgress / 0.4;
-    bullAmount = sequenceProgress / 0.4;
-    logoAmount = 0.0;
-  } else if (sequenceProgress <= 0.6) {
-    // Buffer phase (0.4 to 0.6): pure bull - stays visible longer
-    sphereAmount = 0.0;
-    bullAmount = 1.0;
-    logoAmount = 0.0;
-  } else {
-    // Final phase (0.6 to 1.0): bull to logo transition
-    sphereAmount = 0.0;
-    bullAmount = 1.0 - (sequenceProgress - 0.6) / 0.4;
-    logoAmount = (sequenceProgress - 0.6) / 0.4;
-  }
+  sphereAmount = 1.0 - sequenceProgress;
+  logoAmount = sequenceProgress;
 
-  // Create particle data from logo pixels - with preloaded images
+  // Create particle data from logo pixels
   const particleData = useMemo(() => {
-    // Wait for both logo texture and bull image to be ready
-    if (!bullImageData) {
-      if (debug) {
-        console.log("⏳ Waiting for bull image to load...");
-      }
-      return null; // Return null while loading
-    }
-
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
 
@@ -448,8 +339,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     const colors = new Float32Array(particleCount * 3);
     const originalPositions = new Float32Array(particleCount * 3);
     const spherePositions = new Float32Array(particleCount * 3);
-
-    const bullPositions = new Float32Array(particleCount * 3);
 
     // Use the color prop as fallback color (controllable from Leva)
     const fallbackColor = new THREE.Color(color);
@@ -485,80 +374,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
         visiblePixels[j],
         visiblePixels[i],
       ];
-    }
-
-    // Use preloaded bull image data
-    const bullVisiblePixels = bullImageData.pixels;
-    const bullCanvas = {
-      width: bullImageData.canvasWidth,
-      height: bullImageData.canvasHeight,
-    };
-
-    if (debug) {
-      console.log(
-        `AdvancedLogoParticles: Processing ${textureImage.width}x${textureImage.height} image`
-      );
-      console.log(
-        `Found ${visiblePixels.length} visible pixels out of ${
-          data.length / 4
-        } total pixels`
-      );
-      console.log(
-        `Alpha threshold: ${alphaThreshold}, Force fallback: ${forceFallbackColor}`
-      );
-      console.log(`Fallback color: ${color}`);
-      console.log(`Density mode: ${densityMode}`);
-      console.log(`Morphing enabled: ${enableMorphing ? "YES" : "NO"}`);
-      console.log(
-        `Bull pixels available: ${bullVisiblePixels.length} (from preloaded image)`
-      );
-      if (enableMorphing) {
-        console.log(
-          `🎯 Sequence progress: ${sequenceProgress.toFixed(
-            2
-          )} (0=Sphere, 0.4-0.6=Bull, 1=Logo)`
-        );
-        console.log(`🔵 Sphere amount: ${sphereAmount.toFixed(2)}`);
-        console.log(`🔶 Bull amount: ${bullAmount.toFixed(2)}`);
-        console.log(`🟠 Logo amount: ${logoAmount.toFixed(2)}`);
-        console.log(
-          `✅ Blend sum: ${(sphereAmount + bullAmount + logoAmount).toFixed(
-            2
-          )} (should be 1.0)`
-        );
-
-        // Show which shape should be dominant at current progress
-        const dominantShape =
-          sphereAmount > bullAmount && sphereAmount > logoAmount
-            ? "SPHERE"
-            : bullAmount > sphereAmount && bullAmount > logoAmount
-              ? "BULL"
-              : logoAmount > sphereAmount && logoAmount > bullAmount
-                ? "LOGO"
-                : "TRANSITIONING";
-
-        if (dominantShape === "SPHERE") {
-          console.log("🔵 Currently showing: SPHERE");
-        } else if (dominantShape === "BULL") {
-          console.log("🔶 Currently showing: BULL (diamond pattern)");
-        } else if (dominantShape === "LOGO") {
-          console.log("🟠 Currently showing: LOGO");
-        } else {
-          console.log("🔄 Currently transitioning between shapes");
-        }
-
-        console.log(
-          `Using external progress: ${
-            morphSequenceProgress !== undefined ? "YES" : "NO"
-          }`
-        );
-        if (morphPresets) {
-          console.log(`Current preset: ${morphPresets}`);
-        }
-      }
-      console.log(
-        `Using circular particles: ${circularParticles ? "YES" : "NO"}`
-      );
     }
 
     // Sample particles from visible pixels
@@ -606,17 +421,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
           spherePositions[particleIndex * 3 + 1] =
             sphereRadius * Math.sin(phi) * Math.sin(theta);
           spherePositions[particleIndex * 3 + 2] = sphereRadius * Math.cos(phi);
-
-          // Generate bull positions (guaranteed to have pixels from either image or fallback pattern)
-          const bullPixel =
-            bullVisiblePixels[particleIndex % bullVisiblePixels.length];
-          const bullX = (bullPixel.x / bullCanvas.width - 0.5) * spread;
-          const bullY = -(bullPixel.y / bullCanvas.height - 0.5) * spread;
-          const bullZ = (Math.random() - 0.5) * 0.02;
-
-          bullPositions[particleIndex * 3] = bullX;
-          bullPositions[particleIndex * 3 + 1] = bullY;
-          bullPositions[particleIndex * 3 + 2] = bullZ;
 
           // Store colors - use fallback if forced, otherwise use image colors
           if (forceFallbackColor) {
@@ -681,17 +485,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
             spherePositions[particleIndex * 3 + 2] =
               sphereRadius * Math.cos(phi);
 
-            // Generate bull positions (guaranteed to have pixels from either image or fallback pattern)
-            const bullPixel =
-              bullVisiblePixels[particleIndex % bullVisiblePixels.length];
-            const bullX = (bullPixel.x / bullCanvas.width - 0.5) * spread;
-            const bullY = -(bullPixel.y / bullCanvas.height - 0.5) * spread;
-            const bullZ = (Math.random() - 0.5) * 0.02;
-
-            bullPositions[particleIndex * 3] = bullX;
-            bullPositions[particleIndex * 3 + 1] = bullY;
-            bullPositions[particleIndex * 3 + 2] = bullZ;
-
             // Store colors - use fallback if forced, otherwise use image colors
             if (forceFallbackColor) {
               colors[particleIndex * 3] = fallbackColor.r;
@@ -754,17 +547,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
             sphereRadius * Math.sin(phi) * Math.sin(theta);
           spherePositions[particleIndex * 3 + 2] = sphereRadius * Math.cos(phi);
 
-          // Generate bull positions (guaranteed to have pixels from either image or fallback pattern)
-          const bullPixel =
-            bullVisiblePixels[particleIndex % bullVisiblePixels.length];
-          const bullX = (bullPixel.x / bullCanvas.width - 0.5) * spread;
-          const bullY = -(bullPixel.y / bullCanvas.height - 0.5) * spread;
-          const bullZ = (Math.random() - 0.5) * 0.02;
-
-          bullPositions[particleIndex * 3] = bullX;
-          bullPositions[particleIndex * 3 + 1] = bullY;
-          bullPositions[particleIndex * 3 + 2] = bullZ;
-
           // Store colors - use fallback if forced, otherwise use image colors
           if (forceFallbackColor) {
             colors[particleIndex * 3] = fallbackColor.r;
@@ -818,17 +600,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
         sphereRadius * Math.sin(phi) * Math.sin(theta);
       spherePositions[particleIndex * 3 + 2] = sphereRadius * Math.cos(phi);
 
-      // Generate bull positions (guaranteed to have pixels from either image or fallback pattern)
-      const bullPixel =
-        bullVisiblePixels[particleIndex % bullVisiblePixels.length];
-      const bullX = (bullPixel.x / bullCanvas.width - 0.5) * spread;
-      const bullY = -(bullPixel.y / bullCanvas.height - 0.5) * spread;
-      const bullZ = (Math.random() - 0.5) * 0.02;
-
-      bullPositions[particleIndex * 3] = bullX;
-      bullPositions[particleIndex * 3 + 1] = bullY;
-      bullPositions[particleIndex * 3 + 2] = bullZ;
-
       // Store colors - use fallback if forced, otherwise use pixel colors
       if (forceFallbackColor) {
         colors[particleIndex * 3] = fallbackColor.r;
@@ -859,8 +630,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       colors,
       originalPositions,
       spherePositions,
-
-      bullPositions,
     };
   }, [
     texture,
@@ -871,23 +640,16 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     densityMode,
     forceFallbackColor,
     debug,
-    bullImageData,
   ]);
 
   // Destructure particle data with defaults
-  const {
-    positions,
-    colors,
-    originalPositions,
-    spherePositions,
-    bullPositions,
-  } = particleData || {
-    positions: new Float32Array(0),
-    colors: new Float32Array(0),
-    originalPositions: new Float32Array(0),
-    spherePositions: new Float32Array(0),
-    bullPositions: new Float32Array(0),
-  };
+  const { positions, colors, originalPositions, spherePositions } =
+    particleData || {
+      positions: new Float32Array(0),
+      colors: new Float32Array(0),
+      originalPositions: new Float32Array(0),
+      spherePositions: new Float32Array(0),
+    };
 
   // Get the appropriate blending mode
   const getBlendingMode = () => {
@@ -949,10 +711,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       const sphereY = spherePositions[i + 1];
       const sphereZ = spherePositions[i + 2];
 
-      const bullX = bullPositions?.[i] ?? originalX;
-      const bullY = bullPositions?.[i + 1] ?? originalY;
-      const bullZ = bullPositions?.[i + 2] ?? originalZ;
-
       // Calculate target position using weighted blend of all three shapes
       let targetX, targetY, targetZ;
 
@@ -960,12 +718,9 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       if (enableMorphing) {
         // Weighted blend between sphere, bull, and logo positions
         // The amounts should always sum to 1.0 for proper blending
-        targetX =
-          sphereAmount * sphereX + bullAmount * bullX + logoAmount * originalX;
-        targetY =
-          sphereAmount * sphereY + bullAmount * bullY + logoAmount * originalY;
-        targetZ =
-          sphereAmount * sphereZ + bullAmount * bullZ + logoAmount * originalZ;
+        targetX = sphereAmount * sphereX + logoAmount * originalX;
+        targetY = sphereAmount * sphereY + logoAmount * originalY;
+        targetZ = sphereAmount * sphereZ + logoAmount * originalZ;
       } else {
         // No morphing - use original logo positions
         targetX = originalX;
