@@ -5,21 +5,50 @@
     <link rel="icon" type="image/png" href="/TraidarLogo.PNG" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Traidar Interactive Logo</title>
+    <style>
+      /* Critical CSS for loading screen - prevents FOUC */
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      @keyframes logoGlow {
+        from { filter: drop-shadow(0 0 20px rgba(243, 132, 57, 0.3)); }
+        to { filter: drop-shadow(0 0 30px rgba(243, 132, 57, 0.6)); }
+      }
+      #loading-screen img {
+        animation: logoGlow 2s ease-in-out infinite alternate;
+      }
+      /* Ensure no white flash */
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #0a0a0a;
+        overflow: hidden;
+      }
+      #root {
+        background-color: #0a0a0a;
+        opacity: 0;
+        transition: opacity 0.5s ease-in;
+      }
+      #root.loaded {
+        opacity: 1;
+      }
+    </style>
   </head>
-  <body>
+  <body style="margin: 0; background-color: #0a0a0a; overflow: hidden;">
     <!-- Loading Screen -->
-    <div id="loading-screen">
+    <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);">
       <div class="loading-overlay">
-        <div class="loading-content">
-          <div class="loading-logo">
-            <img src="/TraidarLogo.PNG" alt="Traidar Logo" />
+        <div class="loading-content" style="text-align: center; color: #ffffff; max-width: 400px; padding: 2rem;">
+          <div class="loading-logo" style="margin-bottom: 2rem; opacity: 0.9;">
+            <img src="/TraidarLogo.PNG" alt="Traidar Logo" style="width: 120px; height: auto; filter: drop-shadow(0 0 20px rgba(243, 132, 57, 0.3));" />
           </div>
-          <div class="loading-spinner">
-            <div class="spinner"></div>
+          <div class="loading-spinner" style="margin: 2rem 0;">
+            <div class="spinner" style="width: 50px; height: 50px; border: 3px solid rgba(243, 132, 57, 0.1); border-top: 3px solid #f38439; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
           </div>
           <div class="loading-text">
-            <h2>Loading Experience</h2>
-            <p>Preparing your interactive logo...</p>
+            <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem; color: #ffffff; font-weight: 600; letter-spacing: 0.5px;">Loading Experience</h2>
+            <p style="font-size: 1rem; color: #cccccc; margin: 0; font-weight: 400;">Preparing your interactive logo...</p>
           </div>
         </div>
       </div>
