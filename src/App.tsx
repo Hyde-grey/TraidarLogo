@@ -47,17 +47,30 @@ function Scene() {
     spread: { value: 3, min: 1, max: 10, step: 0.1 },
     animationSpeed: { value: 0.5, min: 0, max: 2, step: 0.1 },
     opacity: { value: 0.8, min: 0, max: 1, step: 0.1 },
+    particleColor: {
+      value: "#f38439",
+      label: "Particle Color",
+    },
   });
 
   // Debug controls for LogoParticles
   const debugControls = useControls("Particle Debug", {
     enableDebug: false,
+    forceFallbackColor: true, // Enable by default to test orange color
     alphaThreshold: { value: 50, min: 0, max: 255, step: 1 },
     densityMode: {
       value: "adaptive",
       options: {
         "Adaptive (Better)": "adaptive",
         "Uniform (Fallback)": "uniform",
+      },
+    },
+    blendMode: {
+      value: "normal",
+      options: {
+        "Normal (Solid Colors)": "normal",
+        "Additive (Bright/Glowing)": "additive",
+        "Multiply (Dark)": "multiply",
       },
     },
   });
@@ -95,9 +108,14 @@ function Scene() {
           spread={logoParticlesControls.spread}
           speed={logoParticlesControls.animationSpeed}
           opacity={logoParticlesControls.opacity}
+          color={logoParticlesControls.particleColor}
           debug={debugControls.enableDebug}
+          forceFallbackColor={debugControls.forceFallbackColor}
           alphaThreshold={debugControls.alphaThreshold}
           densityMode={debugControls.densityMode as "uniform" | "adaptive"}
+          blendMode={
+            debugControls.blendMode as "normal" | "additive" | "multiply"
+          }
         />
       )}
 
@@ -109,6 +127,14 @@ function Scene() {
           spread={logoParticlesControls.spread}
           animationSpeed={logoParticlesControls.animationSpeed}
           opacity={logoParticlesControls.opacity}
+          color={logoParticlesControls.particleColor}
+          debug={debugControls.enableDebug}
+          forceFallbackColor={debugControls.forceFallbackColor}
+          alphaThreshold={debugControls.alphaThreshold}
+          densityMode={debugControls.densityMode as "uniform" | "adaptive"}
+          blendMode={
+            debugControls.blendMode as "normal" | "additive" | "multiply"
+          }
         />
       )}
 

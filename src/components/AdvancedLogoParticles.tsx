@@ -17,6 +17,11 @@ type AdvancedLogoParticlesProps = {
   animationSpeed?: number;
   color?: string;
   opacity?: number;
+  debug?: boolean;
+  alphaThreshold?: number;
+  densityMode?: "uniform" | "adaptive";
+  blendMode?: "normal" | "additive" | "multiply";
+  forceFallbackColor?: boolean;
 };
 
 /**
@@ -30,12 +35,27 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
   particleSize = 0.015,
   spread = 3,
   animationSpeed = 0.5,
-  color = "#ffffff",
+  color = "#f38439",
   opacity = 0.9,
+  debug = false,
+  alphaThreshold = 50,
+  densityMode = "adaptive",
+  blendMode = "normal",
+  forceFallbackColor = false,
 }) => {
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
   const texture = useLoader(TextureLoader, logoUrl);
+
+  // Configure texture for better color handling
+  useMemo(() => {
+    if (texture) {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.generateMipmaps = false;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+    }
+  }, [texture]);
 
   // Controls for interactive tweaking
   const {
@@ -48,7 +68,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     waveAmplitude,
     particleOpacity,
     particleScale,
-  } = useControls("Logo Particles", {
+  } = useControls("Advanced Logo Particles", {
     morphToSphere: false,
     morphToCube: false,
     explosionForce: { value: 0, min: 0, max: 5, step: 0.1 },
@@ -76,7 +96,12 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       ? texture[0]?.image
       : texture.image;
 
-    if (!ctx || !textureImage)
+    if (!ctx || !textureImage) {
+      if (debug) {
+        console.warn(
+          "AdvancedLogoParticles: Failed to load image or get canvas context"
+        );
+      }
       return {
         positions: new Float32Array(),
         colors: new Float32Array(),
@@ -84,10 +109,12 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
         spherePositions: new Float32Array(),
         cubePositions: new Float32Array(),
       };
+    }
 
     // Set canvas size and draw image
     canvas.width = textureImage.width;
     canvas.height = textureImage.height;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(textureImage, 0, 0);
 
     // Get image data
@@ -101,27 +128,67 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     const spherePositions = new Float32Array(particleCount * 3);
     const cubePositions = new Float32Array(particleCount * 3);
 
-    let particleIndex = 0;
-    const samplingRate = Math.max(
-      1,
-      Math.floor(data.length / 4 / particleCount)
-    );
+    // Use the color prop as fallback color (controllable from Leva)
+    const fallbackColor = new THREE.Color(color);
 
-    for (
-      let i = 0;
-      i < data.length && particleIndex < particleCount;
-      i += samplingRate * 4
-    ) {
+    // First pass: collect all visible pixels for adaptive sampling
+    const visiblePixels: Array<{
+      x: number;
+      y: number;
+      r: number;
+      g: number;
+      b: number;
+      a: number;
+    }> = [];
+
+    for (let i = 0; i < data.length; i += 4) {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
       const a = data[i + 3];
 
-      // Only create particles for visible pixels
-      if (a > 50) {
+      if (a > alphaThreshold) {
         const pixelIndex = i / 4;
-        const x = (pixelIndex % canvas.width) / canvas.width;
-        const y = Math.floor(pixelIndex / canvas.width) / canvas.height;
+        const x = pixelIndex % canvas.width;
+        const y = Math.floor(pixelIndex / canvas.width);
+        visiblePixels.push({ x, y, r, g, b, a });
+      }
+    }
+
+    if (debug) {
+      console.log(
+        `AdvancedLogoParticles: Processing ${textureImage.width}x${textureImage.height} image`
+      );
+      console.log(
+        `Found ${visiblePixels.length} visible pixels out of ${
+          data.length / 4
+        } total pixels`
+      );
+      console.log(
+        `Alpha threshold: ${alphaThreshold}, Force fallback: ${forceFallbackColor}`
+      );
+      console.log(`Fallback color: ${color}`);
+      console.log(`Density mode: ${densityMode}`);
+    }
+
+    // Sample particles from visible pixels
+    let particleIndex = 0;
+
+    if (densityMode === "adaptive" && visiblePixels.length > 0) {
+      // Adaptive sampling: distribute particles evenly across visible pixels
+      const step = Math.max(
+        1,
+        Math.floor(visiblePixels.length / particleCount)
+      );
+
+      for (
+        let i = 0;
+        i < visiblePixels.length && particleIndex < particleCount;
+        i += step
+      ) {
+        const pixel = visiblePixels[i];
+        const x = pixel.x / canvas.width;
+        const y = pixel.y / canvas.height;
 
         // Convert to 3D coordinates (centered and scaled)
         const posX = (x - 0.5) * spread;
@@ -154,13 +221,94 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
         cubePositions[particleIndex * 3 + 1] = (Math.random() - 0.5) * cubeSize;
         cubePositions[particleIndex * 3 + 2] = (Math.random() - 0.5) * cubeSize;
 
-        // Store colors with intensity
-        colors[particleIndex * 3] = r / 255;
-        colors[particleIndex * 3 + 1] = g / 255;
-        colors[particleIndex * 3 + 2] = b / 255;
+        // Store colors - use fallback if forced, otherwise use image colors
+        if (forceFallbackColor) {
+          colors[particleIndex * 3] = fallbackColor.r;
+          colors[particleIndex * 3 + 1] = fallbackColor.g;
+          colors[particleIndex * 3 + 2] = fallbackColor.b;
+        } else {
+          colors[particleIndex * 3] = pixel.r / 255;
+          colors[particleIndex * 3 + 1] = pixel.g / 255;
+          colors[particleIndex * 3 + 2] = pixel.b / 255;
+        }
 
         particleIndex++;
       }
+    } else {
+      // Uniform sampling: old method as fallback
+      const samplingRate = Math.max(
+        1,
+        Math.floor(data.length / 4 / particleCount)
+      );
+
+      for (
+        let i = 0;
+        i < data.length && particleIndex < particleCount;
+        i += samplingRate * 4
+      ) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+
+        if (a > alphaThreshold) {
+          const pixelIndex = i / 4;
+          const x = (pixelIndex % canvas.width) / canvas.width;
+          const y = Math.floor(pixelIndex / canvas.width) / canvas.height;
+
+          // Convert to 3D coordinates (centered and scaled)
+          const posX = (x - 0.5) * spread;
+          const posY = -(y - 0.5) * spread; // Flip Y axis
+          const posZ = (Math.random() - 0.5) * 0.5; // Add depth variation
+
+          // Store original logo positions
+          originalPositions[particleIndex * 3] = posX;
+          originalPositions[particleIndex * 3 + 1] = posY;
+          originalPositions[particleIndex * 3 + 2] = posZ;
+
+          // Current positions (start with original)
+          positions[particleIndex * 3] = posX;
+          positions[particleIndex * 3 + 1] = posY;
+          positions[particleIndex * 3 + 2] = posZ;
+
+          // Generate sphere positions
+          const sphereRadius = spread * 0.8;
+          const phi = Math.acos(1 - 2 * Math.random());
+          const theta = Math.random() * Math.PI * 2;
+          spherePositions[particleIndex * 3] =
+            sphereRadius * Math.sin(phi) * Math.cos(theta);
+          spherePositions[particleIndex * 3 + 1] =
+            sphereRadius * Math.sin(phi) * Math.sin(theta);
+          spherePositions[particleIndex * 3 + 2] = sphereRadius * Math.cos(phi);
+
+          // Generate cube positions
+          const cubeSize = spread * 0.6;
+          cubePositions[particleIndex * 3] = (Math.random() - 0.5) * cubeSize;
+          cubePositions[particleIndex * 3 + 1] =
+            (Math.random() - 0.5) * cubeSize;
+          cubePositions[particleIndex * 3 + 2] =
+            (Math.random() - 0.5) * cubeSize;
+
+          // Store colors - use fallback if forced, otherwise use image colors
+          if (forceFallbackColor) {
+            colors[particleIndex * 3] = fallbackColor.r;
+            colors[particleIndex * 3 + 1] = fallbackColor.g;
+            colors[particleIndex * 3 + 2] = fallbackColor.b;
+          } else {
+            colors[particleIndex * 3] = r / 255;
+            colors[particleIndex * 3 + 1] = g / 255;
+            colors[particleIndex * 3 + 2] = b / 255;
+          }
+
+          particleIndex++;
+        }
+      }
+    }
+
+    if (debug) {
+      console.log(
+        `AdvancedLogoParticles: Generated ${particleIndex} particles`
+      );
     }
 
     return {
@@ -170,22 +318,50 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       spherePositions,
       cubePositions,
     };
-  }, [texture, particleCount, spread]);
+  }, [
+    texture,
+    particleCount,
+    spread,
+    color,
+    alphaThreshold,
+    densityMode,
+    forceFallbackColor,
+    debug,
+  ]);
+
+  // Get the appropriate blending mode
+  const getBlendingMode = () => {
+    switch (blendMode) {
+      case "additive":
+        return THREE.AdditiveBlending;
+      case "multiply":
+        return THREE.MultiplyBlending;
+      case "normal":
+      default:
+        return THREE.NormalBlending;
+    }
+  };
 
   // Animation loop
   useFrame((state) => {
-    if (!pointsRef.current) return;
+    if (!pointsRef.current || positions.length === 0) return;
 
     const positionAttribute =
       pointsRef.current.geometry.getAttribute("position");
     const colorAttribute = pointsRef.current.geometry.getAttribute("color");
-    const positions = positionAttribute.array as Float32Array;
-    const colors = colorAttribute.array as Float32Array;
+
+    if (!positionAttribute || !colorAttribute) return;
+
+    const positionsArray = positionAttribute.array as Float32Array;
+    const colorsArray = colorAttribute.array as Float32Array;
     const time = state.clock.elapsedTime;
 
     // Update particle positions and colors
-    for (let i = 0; i < positions.length; i += 3) {
+    for (let i = 0; i < positionsArray.length; i += 3) {
       const particleIndex = i / 3;
+
+      // Ensure we don't go out of bounds
+      if (i + 2 >= originalPositions.length) break;
 
       // Get original positions
       const originalX = originalPositions[i];
@@ -249,18 +425,18 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       const breathingScale = 1 + Math.sin(time * breathingEffect) * 0.1;
 
       // Set final positions
-      positions[i] = (targetX + waveX) * breathingScale;
-      positions[i + 1] = (targetY + waveY) * breathingScale;
-      positions[i + 2] = (targetZ + waveZ) * breathingScale;
+      positionsArray[i] = (targetX + waveX) * breathingScale;
+      positionsArray[i + 1] = (targetY + waveY) * breathingScale;
+      positionsArray[i + 2] = (targetZ + waveZ) * breathingScale;
 
       // Update colors with intensity
-      const originalR = colors[i];
-      const originalG = colors[i + 1];
-      const originalB = colors[i + 2];
+      const originalR = colorsArray[i];
+      const originalG = colorsArray[i + 1];
+      const originalB = colorsArray[i + 2];
 
-      colors[i] = originalR * colorIntensity;
-      colors[i + 1] = originalG * colorIntensity;
-      colors[i + 2] = originalB * colorIntensity;
+      colorsArray[i] = originalR * colorIntensity;
+      colorsArray[i + 1] = originalG * colorIntensity;
+      colorsArray[i + 2] = originalB * colorIntensity;
     }
 
     // Rotate the entire system
@@ -296,7 +472,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
         opacity={opacity}
         sizeAttenuation={true}
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
+        blending={getBlendingMode()}
       />
     </points>
   );
