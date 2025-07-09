@@ -226,7 +226,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       label: "Resting Wave",
     },
     hoverAmplitude: {
-      value: 0.15,
+      value: 0.5,
       min: 0,
       max: 0.8,
       step: 0.01,
