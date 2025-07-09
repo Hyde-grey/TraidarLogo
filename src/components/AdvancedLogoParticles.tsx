@@ -164,6 +164,11 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
   );
   const mouseWorldPosition = useRef(new THREE.Vector3());
 
+  // Hover state management
+  const [isHovered, setIsHovered] = useState(false);
+  const currentAmplitude = useRef(0);
+  const hoverRadius = useRef(2.0); // Radius for hover detection
+
   // Create circular particle texture
   const circleTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -212,17 +217,80 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
   // Controls for interactive tweaking - conditionally include morphing controls
   const controlsConfig = {
     explosionForce: { value: 0, min: 0, max: 5, step: 0.1 },
-    waveAmplitude: { value: 0.02, min: 0, max: 0.5, step: 0.01 },
+    // Hover-based wave controls
+    restingAmplitude: {
+      value: 0.02,
+      min: 0,
+      max: 0.2,
+      step: 0.01,
+      label: "Resting Wave",
+    },
+    hoverAmplitude: {
+      value: 0.8,
+      min: 0,
+      max: 0.8,
+      step: 0.01,
+      label: "Hover Wave",
+    },
+    hoverRadius: {
+      value: 2.0,
+      min: 0.5,
+      max: 5.0,
+      step: 0.1,
+      label: "Hover Radius",
+    },
+    transitionSpeed: {
+      value: 3.0,
+      min: 0.5,
+      max: 10.0,
+      step: 0.1,
+      label: "Transition Speed",
+    },
+    waveFrequency: {
+      value: 5.0,
+      min: 0.1,
+      max: 5,
+      step: 0.1,
+      label: "Wave Frequency",
+    },
+    waveComplexity: {
+      value: 0.3,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: "Wave Complexity",
+    },
+    waveCircular: {
+      value: 0.4,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: "Circular Motion",
+    },
+    waveFlow: {
+      value: 0.3,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: "Flow Effect",
+    },
+    waveSpiral: {
+      value: 0.2,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      label: "Spiral Effect",
+    },
     mouseInteraction: {
-      value: 2,
+      value: 0,
       min: 0,
       max: 5,
       step: 0.1,
       label: "Mouse Force",
     },
     mouseRadius: {
-      value: 1.0,
-      min: 0.1,
+      value: 0,
+      min: 0,
       max: 4,
       step: 0.1,
       label: "Mouse Radius",
@@ -272,7 +340,15 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     sequenceProgress: controlSequenceProgress,
     morphPresets,
     explosionForce,
-    waveAmplitude,
+    restingAmplitude,
+    hoverAmplitude,
+    hoverRadius: controlHoverRadius,
+    transitionSpeed,
+    waveFrequency,
+    waveComplexity,
+    waveCircular,
+    waveFlow,
+    waveSpiral,
     mouseInteraction,
     mouseRadius,
     particleScale,
@@ -665,7 +741,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
   };
 
   // Animation loop
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (!pointsRef.current || positions.length === 0) return;
 
     const positionAttribute =
@@ -693,6 +769,30 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     ) {
       mouseWorldPosition.current.copy(intersectionPoint);
     }
+
+    // Update hover radius from controls
+    hoverRadius.current = controlHoverRadius;
+
+    // Check if mouse is within hover radius of any particle (simplified check using logo center)
+    const logoCenter = new THREE.Vector3(0, 0, 0);
+    const distanceToCenter = mouseWorldPosition.current.distanceTo(logoCenter);
+    const shouldHover = distanceToCenter < hoverRadius.current;
+
+    // Update hover state
+    if (shouldHover !== isHovered) {
+      setIsHovered(shouldHover);
+    }
+
+    // Smoothly transition amplitude based on hover state
+    const targetAmplitude = isHovered ? hoverAmplitude : restingAmplitude;
+    currentAmplitude.current = THREE.MathUtils.lerp(
+      currentAmplitude.current,
+      targetAmplitude,
+      delta * transitionSpeed
+    );
+
+    // Use the dynamic amplitude for all wave calculations
+    const waveAmplitude = currentAmplitude.current;
 
     // Update particle positions and colors
     for (let i = 0; i < positionsArray.length; i += 3) {
@@ -742,15 +842,60 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
         targetZ += normalizedZ * explosionForce;
       }
 
-      // Apply wave animation
-      const waveX =
-        Math.sin(time * animationSpeed + particleIndex * 0.1) * waveAmplitude;
-      const waveY =
-        Math.cos(time * animationSpeed + particleIndex * 0.1) * waveAmplitude;
-      const waveZ =
-        Math.sin(time * animationSpeed * 0.5 + particleIndex * 0.2) *
+      // Apply enhanced wave animation with multiple frequencies and patterns
+      const basePhase = time * animationSpeed * waveFrequency;
+      const particlePhase = particleIndex * 0.1;
+      const positionPhase = (targetX + targetY) * 0.5; // Position-based variation
+
+      // Primary wave (main movement)
+      const primaryWaveX = Math.sin(basePhase + particlePhase) * waveAmplitude;
+      const primaryWaveY = Math.cos(basePhase + particlePhase) * waveAmplitude;
+
+      // Secondary wave (adds complexity)
+      const secondaryFreq = waveFrequency * 0.7;
+      const secondaryWaveX =
+        Math.sin(basePhase * secondaryFreq + positionPhase) *
         waveAmplitude *
-        0.5;
+        waveComplexity;
+      const secondaryWaveY =
+        Math.cos(basePhase * secondaryFreq + positionPhase + Math.PI * 0.5) *
+        waveAmplitude *
+        waveComplexity;
+
+      // Circular motion (orbital movement)
+      const circularPhase = basePhase * 0.3 + particlePhase;
+      const circularRadius = waveAmplitude * waveCircular;
+      const circularWaveX = Math.cos(circularPhase) * circularRadius;
+      const circularWaveY = Math.sin(circularPhase) * circularRadius;
+
+      // Flow effect (smooth directional movement)
+      const flowPhase = basePhase * 0.4 + positionPhase * 0.2;
+      const flowDirection = Math.atan2(targetY, targetX); // Direction from center
+      const flowWaveX =
+        Math.cos(flowPhase + flowDirection) * waveAmplitude * waveFlow;
+      const flowWaveY =
+        Math.sin(flowPhase + flowDirection) * waveAmplitude * waveFlow;
+
+      // Spiral effect (rotating outward motion)
+      const spiralPhase = basePhase * 0.2 + particlePhase;
+      const spiralRadius =
+        Math.sqrt(targetX * targetX + targetY * targetY) * 0.1;
+      const spiralAngle = spiralPhase + spiralRadius;
+      const spiralWaveX = Math.cos(spiralAngle) * waveAmplitude * waveSpiral;
+      const spiralWaveY = Math.sin(spiralAngle) * waveAmplitude * waveSpiral;
+
+      // Depth variation (subtle Z movement)
+      const depthWave =
+        Math.sin(basePhase * 0.5 + particlePhase + positionPhase) *
+        waveAmplitude *
+        0.3;
+
+      // Combine all wave patterns
+      const waveX =
+        primaryWaveX + secondaryWaveX + circularWaveX + flowWaveX + spiralWaveX;
+      const waveY =
+        primaryWaveY + secondaryWaveY + circularWaveY + flowWaveY + spiralWaveY;
+      const waveZ = depthWave;
 
       // Apply mouse interaction force
       let mouseForceX = 0;
