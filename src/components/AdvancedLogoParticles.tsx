@@ -154,7 +154,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
   const pointsRef = useRef<THREE.Points>(null);
   const materialRef = useRef<THREE.PointsMaterial>(null);
   const texture = useLoader(TextureLoader, logoUrl);
-  const { mouse, camera, size } = useThree();
+  const { mouse, camera } = useThree();
 
   // Raycaster for accurate 3D mouse interactions
   const raycaster = useRef(new THREE.Raycaster());
@@ -448,7 +448,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     const colors = new Float32Array(particleCount * 3);
     const originalPositions = new Float32Array(particleCount * 3);
     const spherePositions = new Float32Array(particleCount * 3);
-    const cubePositions = new Float32Array(particleCount * 3);
+
     const bullPositions = new Float32Array(particleCount * 3);
 
     // Use the color prop as fallback color (controllable from Leva)
@@ -607,14 +607,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
             sphereRadius * Math.sin(phi) * Math.sin(theta);
           spherePositions[particleIndex * 3 + 2] = sphereRadius * Math.cos(phi);
 
-          // Generate cube positions
-          const cubeSize = spread * 0.6;
-          cubePositions[particleIndex * 3] = (Math.random() - 0.5) * cubeSize;
-          cubePositions[particleIndex * 3 + 1] =
-            (Math.random() - 0.5) * cubeSize;
-          cubePositions[particleIndex * 3 + 2] =
-            (Math.random() - 0.5) * cubeSize;
-
           // Generate bull positions (guaranteed to have pixels from either image or fallback pattern)
           const bullPixel =
             bullVisiblePixels[particleIndex % bullVisiblePixels.length];
@@ -689,14 +681,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
             spherePositions[particleIndex * 3 + 2] =
               sphereRadius * Math.cos(phi);
 
-            // Generate cube positions
-            const cubeSize = spread * 0.6;
-            cubePositions[particleIndex * 3] = (Math.random() - 0.5) * cubeSize;
-            cubePositions[particleIndex * 3 + 1] =
-              (Math.random() - 0.5) * cubeSize;
-            cubePositions[particleIndex * 3 + 2] =
-              (Math.random() - 0.5) * cubeSize;
-
             // Generate bull positions (guaranteed to have pixels from either image or fallback pattern)
             const bullPixel =
               bullVisiblePixels[particleIndex % bullVisiblePixels.length];
@@ -770,14 +754,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
             sphereRadius * Math.sin(phi) * Math.sin(theta);
           spherePositions[particleIndex * 3 + 2] = sphereRadius * Math.cos(phi);
 
-          // Generate cube positions
-          const cubeSize = spread * 0.6;
-          cubePositions[particleIndex * 3] = (Math.random() - 0.5) * cubeSize;
-          cubePositions[particleIndex * 3 + 1] =
-            (Math.random() - 0.5) * cubeSize;
-          cubePositions[particleIndex * 3 + 2] =
-            (Math.random() - 0.5) * cubeSize;
-
           // Generate bull positions (guaranteed to have pixels from either image or fallback pattern)
           const bullPixel =
             bullVisiblePixels[particleIndex % bullVisiblePixels.length];
@@ -842,12 +818,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
         sphereRadius * Math.sin(phi) * Math.sin(theta);
       spherePositions[particleIndex * 3 + 2] = sphereRadius * Math.cos(phi);
 
-      // Generate cube positions
-      const cubeSize = spread * 0.6;
-      cubePositions[particleIndex * 3] = (Math.random() - 0.5) * cubeSize;
-      cubePositions[particleIndex * 3 + 1] = (Math.random() - 0.5) * cubeSize;
-      cubePositions[particleIndex * 3 + 2] = (Math.random() - 0.5) * cubeSize;
-
       // Generate bull positions (guaranteed to have pixels from either image or fallback pattern)
       const bullPixel =
         bullVisiblePixels[particleIndex % bullVisiblePixels.length];
@@ -889,7 +859,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       colors,
       originalPositions,
       spherePositions,
-      cubePositions,
+
       bullPositions,
     };
   }, [
@@ -910,14 +880,12 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     colors,
     originalPositions,
     spherePositions,
-    cubePositions,
     bullPositions,
   } = particleData || {
     positions: new Float32Array(0),
     colors: new Float32Array(0),
     originalPositions: new Float32Array(0),
     spherePositions: new Float32Array(0),
-    cubePositions: new Float32Array(0),
     bullPositions: new Float32Array(0),
   };
 
@@ -945,7 +913,6 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     if (!positionAttribute || !colorAttribute) return;
 
     const positionsArray = positionAttribute.array as Float32Array;
-    const colorsArray = colorAttribute.array as Float32Array;
     const time = state.clock.elapsedTime;
 
     // Update mouse position using raycaster for accurate 3D coordinates
