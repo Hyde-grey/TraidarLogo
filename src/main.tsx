@@ -3,25 +3,6 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 
-// Loading screen management
-function hideLoadingScreen() {
-  const loadingScreen = document.getElementById("loading-screen");
-  const root = document.getElementById("root");
-
-  if (loadingScreen && root) {
-    // Add loaded class to root for fade-in effect
-    root.classList.add("loaded");
-
-    // Hide loading screen with fade-out effect
-    loadingScreen.classList.add("hidden");
-
-    // Remove loading screen from DOM after transition
-    setTimeout(() => {
-      loadingScreen.remove();
-    }, 500);
-  }
-}
-
 // Initialize the app
 const root = createRoot(document.getElementById("root")!);
 root.render(
