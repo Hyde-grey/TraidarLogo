@@ -254,7 +254,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       label: "Wave Frequency",
     },
     waveComplexity: {
-      value: 0.3,
+      value: 0,
       min: 0,
       max: 1,
       step: 0.01,
