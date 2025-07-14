@@ -240,7 +240,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       label: "Hover Radius",
     },
     transitionSpeed: {
-      value: 7.7,
+      value: 4.0,
       min: 0.5,
       max: 10.0,
       step: 0.1,
