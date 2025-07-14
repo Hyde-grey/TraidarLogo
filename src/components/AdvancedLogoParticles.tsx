@@ -216,7 +216,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
 
   // Controls for interactive tweaking - conditionally include morphing controls
   const controlsConfig = {
-    explosionForce: { value: 0, min: 0, max: 5, step: 0.1 },
+    explosionForce: { value: 0.0, min: 0, max: 5, step: 0.1 },
     // Hover-based wave controls
     restingAmplitude: {
       value: 0.02,
@@ -226,7 +226,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       label: "Resting Wave",
     },
     hoverAmplitude: {
-      value: 0.5,
+      value: 0.8,
       min: 0,
       max: 0.8,
       step: 0.01,
@@ -240,56 +240,56 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       label: "Hover Radius",
     },
     transitionSpeed: {
-      value: 3.0,
+      value: 7.7,
       min: 0.5,
       max: 10.0,
       step: 0.1,
       label: "Transition Speed",
     },
     waveFrequency: {
-      value: 5.0,
+      value: 3.3,
       min: 0.1,
       max: 5,
       step: 0.1,
       label: "Wave Frequency",
     },
     waveComplexity: {
-      value: 0,
+      value: 0.18,
       min: 0,
       max: 1,
       step: 0.01,
       label: "Wave Complexity",
     },
     waveCircular: {
-      value: 0.4,
+      value: 1.0,
       min: 0,
       max: 1,
       step: 0.01,
       label: "Circular Motion",
     },
     waveFlow: {
-      value: 0.3,
+      value: 1.0,
       min: 0,
       max: 1,
       step: 0.01,
       label: "Flow Effect",
     },
     waveSpiral: {
-      value: 0.2,
+      value: 1.0,
       min: 0,
       max: 1,
       step: 0.01,
       label: "Spiral Effect",
     },
     mouseInteraction: {
-      value: 0,
+      value: 0.0,
       min: 0,
       max: 5,
       step: 0.1,
       label: "Mouse Force",
     },
     mouseRadius: {
-      value: 0,
+      value: 0.0,
       min: 0,
       max: 4,
       step: 0.1,
