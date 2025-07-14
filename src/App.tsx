@@ -171,7 +171,7 @@ function Scene() {
   const debugControls = useControls(
     "Particle Debug",
     {
-      enableDebug: false,
+      enableDebug: true,
       forceFallbackColor: true, // Enable by default to test orange color
       alphaThreshold: { value: 50, min: 0, max: 255, step: 1 },
       densityMode: {
@@ -188,10 +188,6 @@ function Scene() {
           "Additive (Bright/Glowing)": "additive",
           "Multiply (Dark)": "multiply",
         },
-      },
-      useCircularParticles: {
-        value: true,
-        label: "Circular Particles",
       },
     },
     { collapsed: true }
@@ -255,7 +251,6 @@ function Scene() {
           blendMode={
             debugControls.blendMode as "normal" | "additive" | "multiply"
           }
-          useCircularParticles={debugControls.useCircularParticles}
         />
       )}
 

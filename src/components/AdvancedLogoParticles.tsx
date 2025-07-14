@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useEffect, useState } from "react";
 import { useFrame, useLoader, useThree } from "@react-three/fiber";
 import { TextureLoader } from "three";
 import * as THREE from "three";
-import { useControls } from "leva";
+import { useAdvancedLogoParticlesControls } from "../hooks/useSceneControls";
 
 /**
  * GSAP Scroll-Triggered Morphing Example:
@@ -169,6 +169,12 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
   const currentAmplitude = useRef(0);
   const hoverRadius = useRef(2.0); // Radius for hover detection
 
+  // Transition progress tracking for easing
+  const transitionProgress = useRef(0);
+  const isTransitioning = useRef(false);
+  const transitionStartValue = useRef(0);
+  const transitionTargetValue = useRef(0);
+
   // Create circular particle texture
   const circleTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -214,128 +220,97 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     }
   }, [texture]);
 
-  // Controls for interactive tweaking - conditionally include morphing controls
-  const controlsConfig = {
-    explosionForce: { value: 0.0, min: 0, max: 5, step: 0.1 },
-    // Hover-based wave controls
-    restingAmplitude: {
-      value: 0.02,
-      min: 0,
-      max: 0.2,
-      step: 0.01,
-      label: "Resting Wave",
-    },
-    hoverAmplitude: {
-      value: 0.8,
-      min: 0,
-      max: 0.8,
-      step: 0.01,
-      label: "Hover Wave",
-    },
-    hoverRadius: {
-      value: 2.0,
-      min: 0.5,
-      max: 5.0,
-      step: 0.1,
-      label: "Hover Radius",
-    },
-    transitionSpeed: {
-      value: 4.0,
-      min: 0.5,
-      max: 10.0,
-      step: 0.1,
-      label: "Transition Speed",
-    },
-    waveFrequency: {
-      value: 3.3,
-      min: 0.1,
-      max: 5,
-      step: 0.1,
-      label: "Wave Frequency",
-    },
-    waveComplexity: {
-      value: 0.18,
-      min: 0,
-      max: 1,
-      step: 0.01,
-      label: "Wave Complexity",
-    },
-    waveCircular: {
-      value: 1.0,
-      min: 0,
-      max: 1,
-      step: 0.01,
-      label: "Circular Motion",
-    },
-    waveFlow: {
-      value: 1.0,
-      min: 0,
-      max: 1,
-      step: 0.01,
-      label: "Flow Effect",
-    },
-    waveSpiral: {
-      value: 1.0,
-      min: 0,
-      max: 1,
-      step: 0.01,
-      label: "Spiral Effect",
-    },
-    mouseInteraction: {
-      value: 0.0,
-      min: 0,
-      max: 5,
-      step: 0.1,
-      label: "Mouse Force",
-    },
-    mouseRadius: {
-      value: 0.0,
-      min: 0,
-      max: 4,
-      step: 0.1,
-      label: "Mouse Radius",
-    },
-    particleScale: { value: 1.5, min: 0.1, max: 3, step: 0.1 },
-    circularParticles: {
-      value: useCircularParticles,
-      label: "Circular Particles",
-    },
-    // Include morphing progress controls if enableMorphing is true
-    ...(enableMorphing && {
-      sequenceProgress: {
-        value: internalSphereProgress, // Reuse this state for sequence progress
-        min: 0,
-        max: 1,
-        step: 0.01,
-        onChange: setInternalSphereProgress,
-        label: "Sequence Progress (0=Sphere, 1=Logo)",
-      },
-      // Preset buttons for quick testing
-      morphPresets: {
-        value: "Logo",
-        options: {
-          Sphere: "sphere",
-          Logo: "logo",
-          Reset: "reset",
-        },
-        onChange: (preset: string) => {
-          switch (preset) {
-            case "sphere":
-              setInternalSphereProgress(0.0); // Start of sequence
-              break;
-            case "logo":
-              setInternalSphereProgress(1.0); // End of sequence
-              break;
-            case "reset":
-              setInternalSphereProgress(0.0);
-              break;
-          }
-        },
-        label: "Morph Sequence",
-      },
-    }),
+  // Settings management functions
+  const getCurrentSettings = (): Record<string, any> => {
+    return {
+      // Component props
+      logoUrl,
+      particleCount,
+      particleSize,
+      spread,
+      animationSpeed,
+      color,
+      opacity,
+      debug,
+      alphaThreshold,
+      densityMode,
+      blendMode,
+      forceFallbackColor,
+      useCircularParticles,
+
+      // Internal controls (will be populated by the controls object)
+      // We'll get these from the controls after they're created
+      timestamp: Date.now(),
+      version: "1.0.0",
+    };
   };
 
+  const exportCurrentSettings = (controlValues: Record<string, any>) => {
+    const settings = getCurrentSettings();
+
+    // Add current control values
+    Object.keys(controlValues).forEach((key) => {
+      settings[key] = controlValues[key];
+    });
+
+    const dataStr = JSON.stringify(settings, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `traidar-logo-particles-${
+      new Date().toISOString().split("T")[0]
+    }.json`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    console.log("✅ Settings exported successfully!");
+  };
+
+  const triggerFileImport = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+
+    input.onchange = (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const settings = JSON.parse(e.target?.result as string);
+          applyImportedSettings(settings);
+          console.log("✅ Settings imported successfully!");
+        } catch (error) {
+          console.error("❌ Error importing settings:", error);
+          alert("Error importing settings. Please check the file format.");
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    input.click();
+  };
+
+  const applyImportedSettings = (settings: any) => {
+    // Log the imported settings for manual application
+    console.log("📋 Imported Settings:", settings);
+
+    // Create a formatted settings summary for easy copying
+    const settingsSummary = Object.entries(settings)
+      .filter(([key]) => !["timestamp", "version", "logoUrl"].includes(key))
+      .map(([key, value]) => `${key}: ${value}`)
+      .join("\n");
+
+    alert(
+      `✅ Settings imported successfully!\n\nApply these values manually to your controls:\n\n${settingsSummary}\n\n💡 Full settings object logged to console for reference.`
+    );
+  };
+
+  // Use centralized controls from useSceneControls hook
   const {
     sequenceProgress: controlSequenceProgress,
     morphPresets,
@@ -344,6 +319,7 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     hoverAmplitude,
     hoverRadius: controlHoverRadius,
     transitionSpeed,
+    transitionEasing,
     waveFrequency,
     waveComplexity,
     waveCircular,
@@ -352,8 +328,12 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     mouseInteraction,
     mouseRadius,
     particleScale,
-    circularParticles,
-  } = useControls("Advanced Logo Particles", controlsConfig);
+  } = useAdvancedLogoParticlesControls(
+    enableMorphing,
+    exportCurrentSettings,
+    triggerFileImport,
+    setInternalSphereProgress
+  );
 
   // Sync internal state with Leva controls when they change
   useEffect(() => {
@@ -740,6 +720,36 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
     }
   };
 
+  // Easing functions for smoother transitions
+  const easingFunctions = useMemo(
+    () => ({
+      linear: (t: number) => t,
+      easeIn: (t: number) => t * t,
+      easeOut: (t: number) => 1 - Math.pow(1 - t, 2),
+      easeInOut: (t: number) =>
+        t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
+      easeBack: (t: number) => {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return c3 * t * t * t - c1 * t * t;
+      },
+      elastic: (t: number) => {
+        const c4 = (2 * Math.PI) / 3;
+        return t === 0
+          ? 0
+          : t === 1
+            ? 1
+            : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+      },
+    }),
+    []
+  );
+
+  // Get the selected easing function
+  const currentEasingFunction =
+    easingFunctions[transitionEasing as keyof typeof easingFunctions] ||
+    easingFunctions.linear;
+
   // Animation loop
   useFrame((state, delta) => {
     if (!pointsRef.current || positions.length === 0) return;
@@ -783,13 +793,40 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
       setIsHovered(shouldHover);
     }
 
-    // Smoothly transition amplitude based on hover state
+    // Smoothly transition amplitude based on hover state with easing
     const targetAmplitude = isHovered ? hoverAmplitude : restingAmplitude;
-    currentAmplitude.current = THREE.MathUtils.lerp(
-      currentAmplitude.current,
-      targetAmplitude,
-      delta * transitionSpeed
-    );
+
+    // Check if we need to start a new transition
+    if (Math.abs(targetAmplitude - transitionTargetValue.current) > 0.001) {
+      // New target - start transition
+      isTransitioning.current = true;
+      transitionProgress.current = 0;
+      transitionStartValue.current = currentAmplitude.current;
+      transitionTargetValue.current = targetAmplitude;
+    }
+
+    // Update transition if active
+    if (isTransitioning.current) {
+      // Update progress based on transition speed
+      transitionProgress.current += delta * transitionSpeed;
+
+      if (transitionProgress.current >= 1.0) {
+        // Transition complete
+        transitionProgress.current = 1.0;
+        isTransitioning.current = false;
+        currentAmplitude.current = transitionTargetValue.current;
+      } else {
+        // Apply easing to the progress (0 to 1)
+        const easedProgress = currentEasingFunction(transitionProgress.current);
+
+        // Interpolate using eased progress
+        currentAmplitude.current = THREE.MathUtils.lerp(
+          transitionStartValue.current,
+          transitionTargetValue.current,
+          easedProgress
+        );
+      }
+    }
 
     // Use the dynamic amplitude for all wave calculations
     const waveAmplitude = currentAmplitude.current;
@@ -962,8 +999,8 @@ export const AdvancedLogoParticles: React.FC<AdvancedLogoParticlesProps> = ({
         sizeAttenuation={true}
         depthWrite={false}
         blending={getBlendingMode()}
-        map={circularParticles ? circleTexture : undefined}
-        alphaTest={circularParticles ? 0.001 : 0}
+        map={useCircularParticles ? circleTexture : undefined}
+        alphaTest={useCircularParticles ? 0.001 : 0}
       />
     </points>
   );
